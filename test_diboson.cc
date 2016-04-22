@@ -25,24 +25,27 @@ void test_diboson()
 	TFile file("lhe.root");
 	fwlite::Event ev(&file);
 
-	TFile * outfile = TFile::Open("tree.root","RECREATE");
+	TFile * outfile = TFile::Open("atgc_tree.root","RECREATE");
 	TTree * tree 	= new TTree("tree","tree");
-	double MWW, DPhi_MET, DPhi_Wlep, whadpt, wleppt, deltaR;
-	std::vector<double> atgc_weights;
-	tree->Branch("MWW",&MWW);
-	tree->Branch("weight",&atgc_weights);
-	tree->Branch("deltaPhi_WjetMet",&DPhi_MET);
-	tree->Branch("jet_pt",&whadpt);
-	tree->Branch("W_pt",&wleppt);
-	tree->Branch("deltaR_LeptonWJet",&deltaR);
-	tree->Branch("deltaPhi_WJetWlep",&DPhi_Wlep);
+	double MWW_tree, DPhi_MET_tree, DPhi_Wlep_tree, whadpt_tree, wleppt_tree, deltaR_tree;
+	std::vector<double> atgc_weights_tree;
+	tree->Branch("MWW",&MWW_tree);
+	tree->Branch("weight",&atgc_weights_tree);
+	tree->Branch("deltaPhi_WjetMet",&DPhi_MET_tree);
+	tree->Branch("jet_pt",&whadpt_tree);
+	tree->Branch("W_pt",&wleppt_tree);
+	tree->Branch("deltaR_LeptonWJet",&deltaR_tree);
+	tree->Branch("deltaPhi_WJetWlep",&DPhi_Wlep_tree);
 
-	int n_events = 0, n_used = 0, n_test = 0, n_el = 0, n_mu = 0;
+	int n_events = 0, n_used = 0, n_test = 0, n_el = 0, n_mu = 0, corr_ev = 0;
+	int n_tot = tree->GetEntries();
+	
+
 
 	for( ev.toBegin(); ! ev.atEnd(); ++ev) 
 	{
+
 		bool keep_Event = true, is_el = false, is_mu = false;
-		n_events++;
 	 	fwlite::Handle<LHEEventProduct> lhe;
 		//now can access data
 		lhe.getByLabel(ev,"source");
@@ -51,6 +54,14 @@ void test_diboson()
 		int nwhad = 0, nlep = 0, nw = 0, whadID = -1000;
 		double delphi_met = 0, delphi_lep, delR = 0;
 
+		if(lhe.product()->weights().size()!=150)
+			{
+				//std::cout<<"only "<<weights.size()<<" weights!"<<std::endl;
+				corr_ev++;
+				continue;
+			}
+
+		n_events++;
 		for(int i = 0; i < lhe->hepeup().NUP; i++)
 		{
 			//W+-
@@ -165,6 +176,7 @@ void test_diboson()
 
 			if(wlep.Pt() > 200. and whad.Pt() > 200. and abs(whad.PseudoRapidity()) < 2.4 and delR > M_PI/2. and abs(delphi_lep) > 2. and abs(delphi_met) > 2.)		
 			{
+				
 				n_used++;
 
 				std::vector <double> weights;
@@ -176,25 +188,29 @@ void test_diboson()
 					weights.push_back(weight);
 				}
 				
-				atgc_weights 	= weights;
-				MWW 		= ww.M();
-				DPhi_MET	= delphi_met;
-				DPhi_Wlep	= delphi_lep;
-				whadpt		= whad.Pt();
-				wleppt		= wlep.Pt();
-				deltaR		= delR;
+				
+				atgc_weights_tree	= weights;
+				MWW_tree 		= ww.M();
+				DPhi_MET_tree		= delphi_met;
+				DPhi_Wlep_tree		= delphi_lep;
+				whadpt_tree		= whad.Pt();
+				wleppt_tree		= wlep.Pt();
+				deltaR_tree		= delR;
 				tree->Fill();
 			}
 		
 		}
 
 		if(n_events%50000==0)
-			std::cout << n_used << " / " << n_events << std::endl; 
+			std::cout << n_used << " / " << n_events << " , corrupted events: " << corr_ev << std::endl;
+
+		if(n_events==2000000)
+			break;	
 
 	}
 
 	tree->Write();
-	std::cout << n_used << " events used of total " << n_events << std::endl;
+	std::cout << n_used << " events used of total " << n_tot << std::endl;
 	outfile->Close();
 	clock_t end = clock();
 	double time_needed = double(end - begin) / CLOCKS_PER_SEC;
