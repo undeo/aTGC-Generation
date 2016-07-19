@@ -31,8 +31,15 @@
 #include <HWWLVJRooPdfs.h>
 
 double cwwws[]		= {-12.,-6.,-2.,0.,2.,6.,12.};
+double cwwws1[]		= {-12.,-6.,0.,6.,12.};
+double cwwws2[]		= {-2.,0.,2.};
 double ccws[]		= {-20.,-10.,-3.5,0.,3.5,10.,20.};
+double ccws1[]		= {-20.,-10.,0.,10.,20.};
+double ccws2[]		= {-3.5,0.,3.5};
 double cbs[]		= {-60.,-30.,-10.,0.,10.,30.,60.};
+double cbs1[]		= {-60.,-30.,0.,30.,60.};
+double cbs2[]		= {-10.,0.,10.};
+double vals[150][3];
 
 double normSM;
 RooWorkspace w("w","w");
@@ -41,7 +48,53 @@ RooWorkspace w2("w2","w2");
 
 void interference(int channel)
 {
-	gSystem->Load("HWWLVJRooPdfs.cxx");
+	//vals gives the atgc values, SM for [0][i]
+	vals[0][0]	= 0.;
+	vals[0][1]	= 0.;
+	vals[0][2]	= 0.;
+	//set other atgc values of vals
+	int count = 1; 
+	for(int i = 0; i<5; i++)
+		for(int j = 0; j<5; j++)
+			for(int k = 0; k<5; k++)
+			{
+				if(cwwws1[i]==12 and ccws1[j]==20 and cbs1[k]==60)
+					continue;
+				if(cwwws1[i]!=0 or ccws1[j]!=0 or cbs1[k]!=0)
+				{
+					vals[count][0] = cwwws1[i];
+					vals[count][1] = ccws1[j];
+					vals[count][2] = cbs1[k];
+						count++;
+				}
+			}
+
+	for(int i = 0; i<3; i++)
+		for(int j = 0; j<3; j++)
+			for(int k = 0; k<3; k++)
+				if(cwwws2[i]!=0 or ccws2[j]!=0 or cbs2[k]!=0)
+				{
+					vals[count][0] = cwwws2[i];
+					vals[count][1] = ccws2[j];
+					vals[count][2] = cbs2[k];
+					count++;
+				}
+	vector<TString> histonames;
+	for(unsigned int i = 0; i<150; i++)
+	{
+		TString cwww_tmp	= vals[i][0] >= 0 ? ("cwww"+to_string(int(vals[i][0]))).c_str() : ("cwww_"+to_string(int(abs(vals[i][0])))).c_str();
+		TString ccw_tmp		= vals[i][1] >= 0 ? ("ccw"+to_string(int(vals[i][1]))).c_str() : ("ccw_"+to_string(int(abs(vals[i][1])))).c_str();
+		TString cb_tmp		= vals[i][2] >= 0 ? ("cb"+to_string(int(vals[i][2]))).c_str() : ("cb_"+to_string(int(abs(vals[i][2])))).c_str();
+		if(vals[i][1] - int(vals[i][1]) != 0)
+			//if it looks stupid but it works, it ain't stupid
+			ccw_tmp		= vals[i][1] >= 0 ? ("ccw"+to_string(int(vals[i][1]))+"_"+to_string(abs(int(10*(vals[i][1]-int(vals[i][1])))))).c_str() : ("ccw_"+to_string(int(abs(vals[i][1])))+"_"+to_string(abs(int(10*(vals[i][1]-int(vals[i][1])))))).c_str();
+		TString name_tmp	= cwww_tmp + ccw_tmp + cb_tmp;
+		histonames.push_back(name_tmp);
+	}
+
+	int binlo	= 600;
+	int nbins	= (3500-binlo)/100;//25 to get pre-approval plot
+	//gSystem->Load("HWWLVJRooPdfs_cxx.so");
 	//channel: 1=el, 2=mu
 	TString ch;	
 	if(channel==1)
@@ -78,7 +131,7 @@ void interference(int channel)
 
 	for(unsigned int i = 0; i<150; i++)
 	{
-		RooDataHist hist(("hist" + to_string(i)).c_str(),("hist" + to_string(i)).c_str(),RooArgSet(MWW));
+		RooDataHist hist(histonames[i],histonames[i],RooArgSet(MWW));
 		w.import(hist);
 	}
 	
@@ -92,7 +145,7 @@ void interference(int channel)
 			number_of_events += 1;
 		}
 
-	std::cout<<"number of events: "<<number_of_events<<std::endl;
+	std::cout<<"number of events: "<<number_of_events<<"/"<<2*number_of_events<<std::endl;
 
 	reader.SetEntry(0);
 	int tmp = 0;	
@@ -104,7 +157,7 @@ void interference(int channel)
 			{
 				//double weight_tmp = (*weights)[i] * (number_of_events/sum_of_weights[0]);
 				double weight_tmp = (*weights)[i];
-				w.data(("hist"+to_string(i)).c_str())->add(RooArgSet(MWW),weight_tmp);
+				w.data(histonames[i])->add(RooArgSet(MWW),weight_tmp);
 			}
 		tmp++;
 		if(tmp%5000==0)
@@ -136,84 +189,113 @@ void interference(int channel)
 			hist_diff_ccw_cb.add(RooArgSet(MWW),weight_ccw_cb_tmp);
 		}
 	}
-	
-	TH1F* testhist = (TH1F*)hist_diff_cwww_ccw.createHistogram("hist_cwww_ccw",MWW);
+
+	RooDataHist hist_diff_cwww_ccw2("hist_diff_cwww_ccw2","hist_diff_cwww_ccw2",RooArgSet(MWW),*hist_diff_cwww_ccw.reduce("MWW>900"));
+	RooDataHist hist_diff_ccw_cb2("hist_diff_ccw_cb2","hist_diff_ccw_cb2",RooArgSet(MWW),*hist_diff_ccw_cb.reduce("MWW>900"));
+
+	//added after pre-approval-----------------------------------------------------------------------------------------------------------------------------------
+	/* turn on has to be fitted for atgc-int as well??	
+	histtmp	= RooDataHist("histtmp","histtmp",RooArgList(MWW),hist_diff_ccw_cb.createHistogram("histmp",MWW,RooFit::Binning(bins2)));
+	RooRealVar atmp("atmp","atmp",-0.001,-0.01,0.);
+	RooRealVar Erf_offset_tmp("Erf_offset_tmp","Erf_offset_tmp",700,200,2000);
+	RooRealVar Erf_width_tmp("Erf_width_tmp","Erf_width_tmp",200,10,5000);
+	RooErfExpPdf Pdf_tmp("Pdf_tmp","Pdf_tmp",MWW,atmp,Erf_offset_tmp,Erf_width_tmp);
+	Pdf_tmp.fitTo(histtmp);
+	RooPlot * ptmp	= MWW.frame();
+	histtmp.plotOn(ptmp);
+	Pdf_tmp.plotOn(ptmp);
+	TCanvas ctmp("ctmp","ctmp",1);
+	ctmp.cd();
+	ptmp->Draw();
+	ctmp.Draw();
+	ctmp.Update();
+	*/
+	RooBinning bins2(900,3500);
+	bins2.addUniform(26,900,3500);
+	MWW.setRange(900,3500);
+	int tmptmp;
+	TH1F* testhist 		= (TH1F*)hist_diff_cwww_ccw2.createHistogram("hist_cwww_ccw",MWW,RooFit::Binning(bins2));
+	testhist->Sumw2();
+	TH1F* testhist2		= (TH1F*)hist_diff_ccw_cb2.createHistogram("hist_ccw_cb",MWW,RooFit::Binning(bins2));
+	testhist2->Sumw2();
+	TCanvas dummy1("dummy1","dummy1",1);
+	TCanvas dummy2("dummy2","dummy2",1);
+	dummy1.cd();//dummy1.SetLogy();
+	testhist->Fit("expo");
+	testhist->Draw();
+	dummy1.Draw();dummy1.Update();
+	float slopeval 		= testhist->GetFunction("expo")->GetParameter(1);
+	dummy2.cd();//dummy2.SetLogy();
+	testhist2->Fit("expo");
+	testhist2->Draw();
+	dummy2.Draw();dummy2.Update();
+	float slopeval2		= testhist2->GetFunction("expo")->GetParameter(1);
+	tmptmp=getchar();
+	MWW.setRange(binlo,3500);
+	//added after pre-approval-----------------------------------------------------------------------------------------------------------------------------------
+	/*old version
+	TH1F* testhist 	= (TH1F*)hist_diff_cwww_ccw.createHistogram("hist_cwww_ccw",MWW);
+	TH1F* testhist2	= (TH1F*)hist_diff_ccw_cb.createHistogram("hist_ccw_cb",MWW);
 	TCanvas dummy1("dummy1","dummy1",1);
 	dummy1.cd(); dummy1.SetLogy();
-	testhist->Draw();
 	testhist->Fit("expo");
-	dummy1.Draw();
+	testhist->Draw();
+	dummy1.Draw();dummy1.Update();
 	float slopeval = testhist->GetFunction("expo")->GetParameter(1);
+	*/
 
+	RooRealVar a2("a2","a2",-0.001,-0.01,0.);
+	RooRealVar a3("a3","a3",-0.001,-0.01,0.);
+	RooRealVar a4("a4","a4",-0.001,-0.01,0.);
+	RooRealVar Erf_offset_cwww("Erf_offset_cwww","Erf_offset_cwww",700,200,2000);	Erf_offset_cwww.setConstant(true);
+	RooRealVar Erf_offset_ccw("Erf_offset_ccw","Erf_offset_ccw",700,200,2000);	Erf_offset_ccw.setConstant(true);
+	RooRealVar Erf_offset_cb("Erf_offset_cb","Erf_offset_cb",700,200,2000);		Erf_offset_cb.setConstant(true);
+	RooRealVar Erf_width_cwww("Erf_width_cwww","Erf_width_cwww",200,10,10000);	Erf_width_cwww.setConstant(true);
+	RooRealVar Erf_width_ccw("Erf_width_ccw","Erf_width_ccw",200,10,10000);		Erf_width_ccw.setConstant(true);
+	RooRealVar Erf_width_cb("Erf_width_cb","Erf_width_cb",200,10,10000);		Erf_width_cb.setConstant(true);
 
 	w.factory("Exponential:SM_Pdf(MWW,a1[-0.001,-0.01,0.])");
-	//w.factory("Exponential:Pdf_cwww(MWW,a2[-0.001,-0.01,0.])");
-	//w.factory("Exponential:Pdf_ccw(MWW,a3[-0.001,-0.01,0.])");
-	//w.factory("Exponential:Pdf_cb(MWW,a4[-0.001,-0.01,0.])");
-	//w.factory("Exponential:Pdf_cwww_lin(MWW,a22[-0.001,-0.01,0.])");
 	w.factory("Exponential:Pdf_ccw_lin(MWW,a33[-0.001,-0.01,0.])");
 	w.factory("Exponential:Pdf_cb_lin(MWW,a44[-0.001,-0.01,0.])");
 	w.factory("Exponential:Int_cwww_ccw(MWW,a5[-0.0001,-0.01,0.01])");
 	w.factory("Exponential:Int_cwww_cb(MWW,a6[-0.001,-0.01,0.01])");
 	w.factory("Exponential:Int_ccw_cb(MWW,a7[-0.001,-0.01,0.01])");
-
-	RooRealVar a2("a2","a2",-0.001,-0.01,0.);
-	RooRealVar a3("a3","a3",-0.001,-0.01,0.);
-	RooRealVar a4("a4","a4",-0.001,-0.01,0.);
-	RooRealVar Erf_offset_cwww("Erf_offset_cwww","Erf_offset_cwww",700,200,2000);
-	RooRealVar Erf_offset_ccw("Erf_offset_ccw","Erf_offset_ccw",700,200,2000);
-	RooRealVar Erf_offset_cb("Erf_offset_cb","Erf_offset_cb",700,200,2000);
-	RooRealVar Erf_width_cwww("Erf_width_cwww","Erf_width_cwww",200,10,10000);
-	RooRealVar Erf_width_ccw("Erf_width_ccw","Erf_width_ccw",200,10,10000);
-	RooRealVar Erf_width_cb("Erf_width_cb","Erf_width_cb",200,10,10000);
-	Erf_offset_cwww.setConstant(true);
-	Erf_offset_ccw.setConstant(true);
-	Erf_offset_cb.setConstant(true);
-	Erf_width_cwww.setConstant(true);
-	Erf_width_ccw.setConstant(true);
-	Erf_width_cb.setConstant(true);
-
 	RooErfExpPdf Pdf_cwww("Pdf_cwww","Pdf_cwww",MWW,a2,Erf_offset_cwww,Erf_width_cwww);
 	RooErfExpPdf Pdf_ccw("Pdf_ccw","Pdf_ccw",MWW,a3,Erf_offset_ccw,Erf_width_ccw);
 	RooErfExpPdf Pdf_cb("Pdf_cb","Pdf_cb",MWW,a4,Erf_offset_cb,Erf_width_cb);
 
+
 	RooAbsPdf * SM_Pdf 	= w.pdf("SM_Pdf");
-	//RooAbsPdf * Pdf_cwww	= w.pdf("Pdf_cwww");
-	//RooAbsPdf * Pdf_ccw	= w.pdf("Pdf_ccw");
-	//RooAbsPdf * Pdf_cb	= w.pdf("Pdf_cb");
-	//RooAbsPdf * Pdf_cwww_lin= w.pdf("Pdf_cwww_lin");
 	RooAbsPdf * Pdf_ccw_lin	= w.pdf("Pdf_ccw_lin");
 	RooAbsPdf * Pdf_cb_lin	= w.pdf("Pdf_cb_lin");
 	RooAbsPdf * Int_cwww_ccw= w.pdf("Int_cwww_ccw");
 	RooAbsPdf * Int_cwww_cb	= w.pdf("Int_cwww_cb");
 	RooAbsPdf * Int_ccw_cb	= w.pdf("Int_ccw_cb");
 
-	RooRealVar N_SM4fit("N_SM4fit","N_SM4fit",w.data("hist0")->sumEntries());			//hist0
-	RooRealVar N_SM("N_SM","N_SM",w.data("hist0")->sumEntries("MWW>900"));
-	RooRealVar N__124fit("N_cwww__124fit","N_cwww__124fit",w.data("hist13")->sumEntries());	//hist13, hist128
-	RooRealVar N__12("N_cwww__12","N_cwww__12",w.data("hist13")->sumEntries("MWW>900"));
-	RooRealVar N_124fit("N_cwww_124fit","N_cwww_124fit",w.data("hist112")->sumEntries());	//hist112, hist145
-	RooRealVar N_12("N_cwww_12","N_cwww_12",w.data("hist112")->sumEntries("MWW>900"));
-	RooRealVar N__204fit("N_ccw__204fit","N_ccw__204fit",w.data("hist53")->sumEntries());	//hist53, hist134
-	RooRealVar N__20("N_ccw__20","N_ccw__20",w.data("hist53")->sumEntries("MWW>900"));
-	RooRealVar N_204fit("N_ccw_204fit","N_ccw_204fit",w.data("hist72")->sumEntries());		//hist72, hist139
-	RooRealVar N_20("N_ccw_20","N_ccw_20",w.data("hist72")->sumEntries("MWW>900"));
-	RooRealVar N__604fit("N_cb__604fit","N_cb__604fit",w.data("hist61")->sumEntries());		//hist61, hist136
-	RooRealVar N__60("N_cb__60","N_cb__60",w.data("hist61")->sumEntries("MWW>900"));
-	RooRealVar N_604fit("N_cb_604fit","N_cb_604fit",w.data("hist64")->sumEntries());		//hist64, hist137
-	RooRealVar N_60("N_cb_60","N_cb_60",w.data("hist64")->sumEntries("MWW>900"));
-	//RooRealVar N__12_20("N_cwww_ccw__12_20","N_cwww_ccw__12_20",w.data("hist23")->sumEntries());
-	//RooRealVar N__12_60("N_cwww_cb__12_60","N_cwww_cb__12_60",w.data("hist15")->sumEntries());
-	//RooRealVar N__20_60("N_ccw_cb__20_60","N_ccw_cb__20_60",w.data("hist55")->sumEntries());
-	RooRealVar N_12_204fit("N_cwww_ccw__12__204fit","N_cwww_ccw__12__204fit",w.data("hist122")->sumEntries());
-	RooRealVar N_12_20("N_cwww_ccw__12__20","N_cwww_ccw__12__20",w.data("hist122")->sumEntries("MWW>900"));
-	RooRealVar N_12_604fit("N_cwww_cb__12__604fit","N_cwww_cb__12__604fit",w.data("hist114")->sumEntries());
-	RooRealVar N_12_60("N_cwww_cb__12__60","N_cwww_cb__12__60",w.data("hist114")->sumEntries("MWW>900"));
-	RooRealVar N_20_604fit("N_ccw_cb__20__604fit","N_ccw_cb__20__604fit",w.data("hist74")->sumEntries());
-	RooRealVar N_20_60("N_ccw_cb__20__60","N_ccw_cb__20__60",w.data("hist74")->sumEntries("MWW>900"));
-	RooRealVar N_4norm4fit("N_4norm4fit","N_4norm4fit",w.data("hist1")->sumEntries());
-	RooRealVar N_4norm("N_4norm","N_4norm",w.data("hist1")->sumEntries("MWW>900"));
+	RooRealVar N_SM4fit("N_SM4fit","N_SM4fit",w.data("cwww0ccw0cb0")->sumEntries());		//hist0
+	RooRealVar N_SM("N_SM","N_SM",w.data("cwww0ccw0cb0")->sumEntries("MWW>900"));
+	RooRealVar N__124fit("N_cwww__124fit","N_cwww__124fit",w.data("cwww_12ccw0cb0")->sumEntries());	//hist13, hist128
+	RooRealVar N__12("N_cwww__12","N_cwww__12",w.data("cwww_12ccw0cb0")->sumEntries("MWW>900"));
+	RooRealVar N_124fit("N_cwww_124fit","N_cwww_124fit",w.data("cwww12ccw0cb0")->sumEntries());	//hist112, hist145
+	RooRealVar N_12("N_cwww_12","N_cwww_12",w.data("cwww12ccw0cb0")->sumEntries("MWW>900"));
+	RooRealVar N__204fit("N_ccw__204fit","N_ccw__204fit",w.data("cwww0ccw_20cb0")->sumEntries());	//hist53, hist134
+	RooRealVar N__20("N_ccw__20","N_ccw__20",w.data("cwww0ccw_20cb0")->sumEntries("MWW>900"));
+	RooRealVar N_204fit("N_ccw_204fit","N_ccw_204fit",w.data("cwww0ccw20cb0")->sumEntries());	//hist72, hist139
+	RooRealVar N_20("N_ccw_20","N_ccw_20",w.data("cwww0ccw20cb0")->sumEntries("MWW>900"));
+	RooRealVar N__604fit("N_cb__604fit","N_cb__604fit",w.data("cwww0ccw0cb_60")->sumEntries());	//hist61, hist136
+	RooRealVar N__60("N_cb__60","N_cb__60",w.data("cwww0ccw0cb_60")->sumEntries("MWW>900"));
+	RooRealVar N_604fit("N_cb_604fit","N_cb_604fit",w.data("cwww0ccw0cb60")->sumEntries());	//hist64, hist137
+	RooRealVar N_60("N_cb_60","N_cb_60",w.data("cwww0ccw0cb60")->sumEntries("MWW>900"));
+	RooRealVar N_12_204fit("N_cwww_ccw__12__204fit","N_cwww_ccw__12__204fit",w.data("cwww_12ccw_20cb0")->sumEntries());
+	RooRealVar N_12_20("N_cwww_ccw__12__20","N_cwww_ccw__12__20",w.data("cwww_12ccw_20cb0")->sumEntries("MWW>900"));
+	RooRealVar N_12_604fit("N_cwww_cb__12__604fit","N_cwww_cb__12__604fit",w.data("cwww_12ccw0cb_60")->sumEntries());
+	RooRealVar N_12_60("N_cwww_cb__12__60","N_cwww_cb__12__60",w.data("cwww_12ccw0cb_60")->sumEntries("MWW>900"));
+	RooRealVar N_20_604fit("N_ccw_cb__20__604fit","N_ccw_cb__20__604fit",w.data("cwww0ccw_20cb_60")->sumEntries());
+	RooRealVar N_20_60("N_ccw_cb__20__60","N_ccw_cb__20__60",w.data("cwww0ccw_20cb_60")->sumEntries("MWW>900"));
+	RooRealVar N_4norm4fit("N_4norm4fit","N_4norm4fit",w.data("cwww_12ccw_20cb_60")->sumEntries());
+	RooRealVar N_4norm("N_4norm","N_4norm",w.data("cwww_12ccw_20cb_60")->sumEntries("MWW>900"));
 
+	cout << 1 << endl;
 
 	w2.import(N_4norm4fit);
 	w2.import(N_SM4fit);
@@ -309,11 +391,11 @@ void interference(int channel)
 	RooRealVar * a6		= w.var("a6");	a6->setConstant(true);
 	RooRealVar * a7		= w.var("a7");	a7->setConstant(true);
 
-	RooBinning bins(600,3500);
-	bins.addUniform(25,600,3500);
+	RooBinning bins(binlo,3500);
+	bins.addUniform(nbins,binlo,3500);
 //SM-fit
 	cwww.setVal(0);	ccw.setVal(0); cb.setVal(0); 	
-	model1.fitTo(*w.data("hist0"));//hist0
+	model1.fitTo(*w.data("cwww0ccw0cb0"));//hist0
 	a1->setConstant(true);
 //SM-interference-fits
 	double N_SM_tmp_val = N_SM4fit.getVal();//SM
@@ -342,8 +424,8 @@ void interference(int channel)
 	hist_diff_cb.plotOn(plott2,RooFit::Binning(bins),RooFit::LineColor(kGreen),RooFit::DrawOption("E"));
 	model1.plotOn(plott2,RooFit::LineColor(kGreen),RooFit::Normalization(hist_diff_cb.sumEntries(),RooAbsReal::NumEvent));
 	plott2->GetYaxis()->SetRangeUser(0.001,5);
-	plott2->Draw();
-	cc2.Draw();cc2.Update();
+	//plott2->Draw();
+	//cc2.Draw();cc2.Update();
 
 	//int cwww-ccw-fit
 	N_SM4fit.setVal(0);N2_tmp.setVal(0);N4_tmp.setVal(0);N5_tmp.setVal(0);N6_tmp.setVal(0);N7_tmp.setVal(0);
@@ -358,14 +440,19 @@ void interference(int channel)
 	model1.fitTo(hist_diff_cwww_cb);
 	a6->setConstant(true);*/
 	//int ccw-cb-fit
-	cwww.setVal(0); ccw.setVal(20); cb.setVal(60);//cb lin
-	a7->setConstant(false);
-	model1.fitTo(hist_diff_ccw_cb);
+	//cwww.setVal(0); ccw.setVal(20); cb.setVal(60);//cb lin
+	//a7->setConstant(false);
+	//model1.fitTo(hist_diff_ccw_cb);
+	//a7->setConstant(true);
+	
+	//added after pre-approval
+	a7->setVal(slopeval2);
 	a7->setConstant(true);
+	//------------------------
 	int end2;
 
 	TCanvas cc("atgcint","atgcint",1);
-	cc.cd();cc.SetLogy();
+	cc.cd();//cc.SetLogy();
 	RooPlot * plott = MWW.frame();
 	cwww.setVal(12);ccw.setVal(20);cb.setVal(0);
 	hist_diff_cwww_ccw.plotOn(plott,RooFit::Binning(bins),RooFit::LineColor(kBlue),RooFit::DrawOption("E"));
@@ -374,9 +461,9 @@ void interference(int channel)
 	//hist_diff_cwww_cb.plotOn(plott,RooFit::Binning(bins),RooFit::LineColor(kRed),RooFit::DrawOption("E"));
 	//model1.plotOn(plott,RooFit::LineColor(kRed),RooFit::Normalization(hist_diff_cwww_cb.sumEntries(),RooAbsReal::NumEvent));
 	cwww.setVal(0); ccw.setVal(20); cb.setVal(60);
-	hist_diff_ccw_cb.plotOn(plott,RooFit::Binning(bins),RooFit::LineColor(kGreen),RooFit::DrawOption("E"));
+	hist_diff_ccw_cb2.plotOn(plott,RooFit::Binning(bins),RooFit::LineColor(kGreen),RooFit::DrawOption("E"));
 	model1.plotOn(plott,RooFit::LineColor(kGreen),RooFit::Normalization(hist_diff_ccw_cb.sumEntries(),RooAbsReal::NumEvent));
-	plott->GetYaxis()->SetRangeUser(0.0001,1);
+	plott->GetYaxis()->SetRangeUser(0.0001,0.3);
 	plott->Draw();
 	cc.Draw();
 	cc.Update();
@@ -392,7 +479,7 @@ void interference(int channel)
 	a2.setConstant(false);
 	Erf_offset_cwww.setConstant(false);
 	Erf_width_cwww.setConstant(false);
-	model1.fitTo(*w.data("hist112"));//hist13, hist128
+	model1.fitTo(*w.data("cwww12ccw0cb0"));//hist13, hist128
 	a2.setConstant(true);
 	Erf_offset_cwww.setConstant(true);
 	Erf_width_cwww.setConstant(true);
@@ -401,7 +488,7 @@ void interference(int channel)
 	a3.setConstant(false);
 	Erf_offset_ccw.setConstant(false);
 	Erf_width_ccw.setConstant(false);
-	model1.fitTo(*w.data("hist72"));//hist53, hist134
+	model1.fitTo(*w.data("cwww0ccw20cb0"));//hist53, hist134
 	a3.setConstant(true);
 	Erf_offset_ccw.setConstant(true);
 	Erf_width_ccw.setConstant(true);
@@ -410,10 +497,12 @@ void interference(int channel)
 	a4.setConstant(false);
 	Erf_offset_cb.setConstant(false);
 	Erf_width_cb.setConstant(false);
-	model1.fitTo(*w.data("hist64"));//hist61, hist 136
+	model1.fitTo(*w.data("cwww0ccw0cb60"));//hist61, hist 136
 	a4.setConstant(true);
 	Erf_offset_cb.setConstant(true);
 	Erf_width_cb.setConstant(true);
+
+	cout<<2<<endl;
 
 	w2.import(*a1);
 	w2.import(a2);
@@ -436,14 +525,16 @@ void interference(int channel)
 	c1.cd(); c1.SetLogy();
 	RooPlot * plot1 = MWW.frame();
 	cwww.setVal(12); ccw.setVal(20); cb.setVal(0);
-	w.data("hist122")->plotOn(plot1,RooFit::Binning(bins),RooFit::MarkerColor(1));
-	model1.plotOn(plot1,RooFit::LineColor(1),RooFit::Normalization(w.data("hist122")->sumEntries(),RooAbsReal::NumEvent));
+	w.data("cwww12ccw20cb0")->plotOn(plot1,RooFit::Binning(bins),RooFit::MarkerColor(1));
+	model1.plotOn(plot1,RooFit::LineColor(1),RooFit::Normalization(w.data("cwww12ccw20cb0")->sumEntries(),RooAbsReal::NumEvent));
 	cwww.setVal(12); ccw.setVal(0); cb.setVal(60);
-	w.data("hist114")->plotOn(plot1,RooFit::Binning(bins),RooFit::MarkerColor(2));
-	model1.plotOn(plot1,RooFit::LineColor(2),RooFit::Normalization(w.data("hist114")->sumEntries(),RooAbsReal::NumEvent));
+	w.data("cwww12ccw0cb60")->plotOn(plot1,RooFit::Binning(bins),RooFit::MarkerColor(2));
+	model1.plotOn(plot1,RooFit::LineColor(2),RooFit::Normalization(w.data("cwww12ccw0cb60")->sumEntries(),RooAbsReal::NumEvent));
 	cwww.setVal(0); ccw.setVal(20); cb.setVal(60);
-	w.data("hist74")->plotOn(plot1,RooFit::Binning(bins),RooFit::MarkerColor(3));
-	model1.plotOn(plot1,RooFit::LineColor(3),RooFit::Normalization(w.data("hist74")->sumEntries(),RooAbsReal::NumEvent));
+	w.data("cwww0ccw20cb60")->plotOn(plot1,RooFit::Binning(bins),RooFit::MarkerColor(3));
+	model1.plotOn(plot1,RooFit::LineColor(3),RooFit::Normalization(w.data("cwww0ccw20cb60")->sumEntries(),RooAbsReal::NumEvent));
+
+	cout<<3<<endl;
 
 	plot1->Draw();
 	c1.Draw();
@@ -529,17 +620,17 @@ void interference(int channel)
 	c4plot.SetLogy();
 	RooPlot * plot4plot = MWW.frame();
 	cwww.setVal(0); ccw.setVal(0); cb.setVal(0);
-	w.data("hist0")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kBlack),RooFit::DrawOption("E1"));
+	w.data("cwww0ccw0cb0")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kBlack),RooFit::DrawOption("E1"));
 	model1.plotOn(plot4plot,RooFit::LineColor(kBlack));
 	cwww.setVal(0); ccw.setVal(-20); cb.setVal(0);
-	w.data("hist53")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kRed),RooFit::DrawOption("E1"));
-	model1.plotOn(plot4plot,RooFit::LineColor(kRed),RooFit::Normalization(w.data("hist53")->sumEntries(),RooAbsReal::NumEvent));
+	w.data("cwww0ccw_20cb0")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kRed),RooFit::DrawOption("E1"));
+	model1.plotOn(plot4plot,RooFit::LineColor(kRed),RooFit::Normalization(w.data("cwww0ccw_20cb0")->sumEntries(),RooAbsReal::NumEvent));
 	cwww.setVal(0); ccw.setVal(-20); cb.setVal(30);
-	w.data("hist54")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kGreen+1),RooFit::DrawOption("E1"));
-	model1.plotOn(plot4plot,RooFit::LineColor(kGreen+1),RooFit::Normalization(w.data("hist54")->sumEntries(),RooAbsReal::NumEvent));
+	w.data("cwww0ccw_20cb30")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kGreen+1),RooFit::DrawOption("E1"));
+	model1.plotOn(plot4plot,RooFit::LineColor(kGreen+1),RooFit::Normalization(w.data("cwww0ccw_20cb30")->sumEntries(),RooAbsReal::NumEvent));
 	cwww.setVal(0); ccw.setVal(-20); cb.setVal(60);
-	w.data("hist55")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kBlue),RooFit::DrawOption("E1"));
-	model1.plotOn(plot4plot,RooFit::LineColor(kBlue),RooFit::Normalization(w.data("hist55")->sumEntries(),RooAbsReal::NumEvent));
+	w.data("cwww0ccw_20cb60")->plotOn(plot4plot,RooFit::Binning(bins),RooFit::LineColor(kBlue),RooFit::DrawOption("E1"));
+	model1.plotOn(plot4plot,RooFit::LineColor(kBlue),RooFit::Normalization(w.data("cwww0ccw_20cb60")->sumEntries(),RooAbsReal::NumEvent));
 	plot4plot->GetXaxis()->SetRangeUser(900,3500);
 	plot4plot->GetYaxis()->SetTitle("arbitrary units");
 	plot4plot->GetXaxis()->SetTitle("M_{WW} (GeV)");
