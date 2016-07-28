@@ -91,9 +91,14 @@ void interference(int channel)
 		TString name_tmp	= cwww_tmp + ccw_tmp + cb_tmp;
 		histonames.push_back(name_tmp);
 	}
+	
 
 	int binlo	= 600;
-	int nbins	= (3500-binlo)/100;//25 to get pre-approval plot
+	//int nbins	= (3500-binlo)/100;//25 to get pre-approval plot
+	int nbins	= 25;
+
+	RooBinning bins(binlo,3500);
+	bins.addUniform(nbins,binlo,3500);
 	//gSystem->Load("HWWLVJRooPdfs_cxx.so");
 	//channel: 1=el, 2=mu
 	TString ch;	
@@ -137,7 +142,7 @@ void interference(int channel)
 	
 	double number_of_events = 0;
 	double sum_of_weights[150] = {0};
-	while(reader.Next())
+/*	while(reader.Next())
 		if(*channel_tree==channel)
 		{
 			for(int i=0; i<150; i++)
@@ -146,6 +151,12 @@ void interference(int channel)
 		}
 
 	std::cout<<"number of events: "<<number_of_events<<"/"<<2*number_of_events<<std::endl;
+*/
+	RooDataHist hist_diff_ccw("hist_diff_ccw","hist_diff_ccw",RooArgSet(MWW));
+	RooDataHist hist_diff_cb("hist_diff_cb","hist_diff_cb",RooArgSet(MWW));
+	RooDataHist hist_diff_cwww_ccw("hist_diff_cwww_ccw","hist_diff_cwww_ccw",RooArgSet(MWW));
+	RooDataHist hist_diff_cwww_cb("hist_diff_cwww_cb","hist_diff_cwww_cb",RooArgSet(MWW));
+	RooDataHist hist_diff_ccw_cb("hist_diff_ccw_cb","hist_diff_ccw_cb",RooArgSet(MWW));
 
 	reader.SetEntry(0);
 	int tmp = 0;	
@@ -159,23 +170,7 @@ void interference(int channel)
 				double weight_tmp = (*weights)[i];
 				w.data(histonames[i])->add(RooArgSet(MWW),weight_tmp);
 			}
-		tmp++;
-		if(tmp%5000==0)
-			std::cout<<tmp<<std::endl;
-	}
 
-	RooDataHist hist_diff_ccw("hist_diff_ccw","hist_diff_ccw",RooArgSet(MWW));
-	RooDataHist hist_diff_cb("hist_diff_cb","hist_diff_cb",RooArgSet(MWW));
-	RooDataHist hist_diff_cwww_ccw("hist_diff_cwww_ccw","hist_diff_cwww_ccw",RooArgSet(MWW));
-	RooDataHist hist_diff_cwww_cb("hist_diff_cwww_cb","hist_diff_cwww_cb",RooArgSet(MWW));
-	RooDataHist hist_diff_ccw_cb("hist_diff_ccw_cb","hist_diff_ccw_cb",RooArgSet(MWW));
-
-	reader.SetEntry(0);
-	while(reader.Next())
-	{
-		MWW.setVal(*MWW_tree);
-		if(*channel_tree==channel)
-		{
 			double weight_cwww_tmp		= (*weights)[112]-(*weights)[13];
 			double weight_ccw_tmp		= (*weights)[72]-(*weights)[53];
 			hist_diff_ccw.add(RooArgSet(MWW),weight_ccw_tmp);
@@ -187,8 +182,12 @@ void interference(int channel)
 			hist_diff_cwww_cb.add(RooArgSet(MWW),weight_cwww_cb_tmp);
 			double weight_ccw_cb_tmp 	= ((*weights)[74]-(*weights)[70]) - weight_cb_tmp;//([ccw20,cb60]-[ccw20,cb-60]) - ([cb60]-[cb-60])
 			hist_diff_ccw_cb.add(RooArgSet(MWW),weight_ccw_cb_tmp);
-		}
+			
+		tmp++;
+		if(tmp%5000==0)
+			std::cout<<tmp<<std::endl;
 	}
+
 
 	RooDataHist hist_diff_cwww_ccw2("hist_diff_cwww_ccw2","hist_diff_cwww_ccw2",RooArgSet(MWW),*hist_diff_cwww_ccw.reduce("MWW>900"));
 	RooDataHist hist_diff_ccw_cb2("hist_diff_ccw_cb2","hist_diff_ccw_cb2",RooArgSet(MWW),*hist_diff_ccw_cb.reduce("MWW>900"));
@@ -230,7 +229,7 @@ void interference(int channel)
 	testhist2->Draw();
 	dummy2.Draw();dummy2.Update();
 	float slopeval2		= testhist2->GetFunction("expo")->GetParameter(1);
-	tmptmp=getchar();
+	//tmptmp=getchar();
 	MWW.setRange(binlo,3500);
 	//added after pre-approval-----------------------------------------------------------------------------------------------------------------------------------
 	/*old version
@@ -246,7 +245,7 @@ void interference(int channel)
 
 	RooRealVar a2("a2","a2",-0.001,-0.01,0.);
 	RooRealVar a3("a3","a3",-0.001,-0.01,0.);
-	RooRealVar a4("a4","a4",-0.001,-0.01,0.);
+	//RooRealVar a4("a4","a4",-0.001,-0.01,0.);
 	RooRealVar Erf_offset_cwww("Erf_offset_cwww","Erf_offset_cwww",700,200,2000);	Erf_offset_cwww.setConstant(true);
 	RooRealVar Erf_offset_ccw("Erf_offset_ccw","Erf_offset_ccw",700,200,2000);	Erf_offset_ccw.setConstant(true);
 	RooRealVar Erf_offset_cb("Erf_offset_cb","Erf_offset_cb",700,200,2000);		Erf_offset_cb.setConstant(true);
@@ -262,7 +261,8 @@ void interference(int channel)
 	w.factory("Exponential:Int_ccw_cb(MWW,a7[-0.001,-0.01,0.01])");
 	RooErfExpPdf Pdf_cwww("Pdf_cwww","Pdf_cwww",MWW,a2,Erf_offset_cwww,Erf_width_cwww);
 	RooErfExpPdf Pdf_ccw("Pdf_ccw","Pdf_ccw",MWW,a3,Erf_offset_ccw,Erf_width_ccw);
-	RooErfExpPdf Pdf_cb("Pdf_cb","Pdf_cb",MWW,a4,Erf_offset_cb,Erf_width_cb);
+	//RooErfExpPdf Pdf_cb("Pdf_cb","Pdf_cb",MWW,a4,Erf_offset_cb,Erf_width_cb);
+	w.factory("Exponential:Pdf_cb(MWW,a4[-0.0001,-0.1,0.])");
 
 
 	RooAbsPdf * SM_Pdf 	= w.pdf("SM_Pdf");
@@ -271,6 +271,7 @@ void interference(int channel)
 	RooAbsPdf * Int_cwww_ccw= w.pdf("Int_cwww_ccw");
 	RooAbsPdf * Int_cwww_cb	= w.pdf("Int_cwww_cb");
 	RooAbsPdf * Int_ccw_cb	= w.pdf("Int_ccw_cb");
+	RooAbsPdf * Pdf_cb	= w.pdf("Pdf_cb");
 
 	RooRealVar N_SM4fit("N_SM4fit","N_SM4fit",w.data("cwww0ccw0cb0")->sumEntries());		//hist0
 	RooRealVar N_SM("N_SM","N_SM",w.data("cwww0ccw0cb0")->sumEntries("MWW>900"));
@@ -286,16 +287,15 @@ void interference(int channel)
 	RooRealVar N__60("N_cb__60","N_cb__60",w.data("cwww0ccw0cb_60")->sumEntries("MWW>900"));
 	RooRealVar N_604fit("N_cb_604fit","N_cb_604fit",w.data("cwww0ccw0cb60")->sumEntries());	//hist64, hist137
 	RooRealVar N_60("N_cb_60","N_cb_60",w.data("cwww0ccw0cb60")->sumEntries("MWW>900"));
-	RooRealVar N_12_204fit("N_cwww_ccw__12__204fit","N_cwww_ccw__12__204fit",w.data("cwww_12ccw_20cb0")->sumEntries());
-	RooRealVar N_12_20("N_cwww_ccw__12__20","N_cwww_ccw__12__20",w.data("cwww_12ccw_20cb0")->sumEntries("MWW>900"));
-	RooRealVar N_12_604fit("N_cwww_cb__12__604fit","N_cwww_cb__12__604fit",w.data("cwww_12ccw0cb_60")->sumEntries());
-	RooRealVar N_12_60("N_cwww_cb__12__60","N_cwww_cb__12__60",w.data("cwww_12ccw0cb_60")->sumEntries("MWW>900"));
-	RooRealVar N_20_604fit("N_ccw_cb__20__604fit","N_ccw_cb__20__604fit",w.data("cwww0ccw_20cb_60")->sumEntries());
-	RooRealVar N_20_60("N_ccw_cb__20__60","N_ccw_cb__20__60",w.data("cwww0ccw_20cb_60")->sumEntries("MWW>900"));
+	RooRealVar N_12_204fit("N_cwww_ccw_12_204fit","N_cwww_ccw_12_204fit",w.data("cwww12ccw20cb0")->sumEntries());
+	RooRealVar N_12_20("N_cwww_ccw_12_20","N_cwww_ccw_12_20",w.data("cwww12ccw20cb0")->sumEntries("MWW>900"));
+	RooRealVar N_12_604fit("N_cwww_cb_12_604fit","N_cwww_cb_12_604fit",w.data("cwww12ccw0cb60")->sumEntries());
+	RooRealVar N_12_60("N_cwww_cb_12_60","N_cwww_cb_12_60",w.data("cwww12ccw0cb60")->sumEntries("MWW>900"));
+	RooRealVar N_20_604fit("N_ccw_cb_20__604fit","N_ccw_cb_20_604fit",w.data("cwww0ccw20cb60")->sumEntries());
+	RooRealVar N_20_60("N_ccw_cb_20_60","N_ccw_cb_20_60",w.data("cwww0ccw20cb60")->sumEntries("MWW>900"));
 	RooRealVar N_4norm4fit("N_4norm4fit","N_4norm4fit",w.data("cwww_12ccw_20cb_60")->sumEntries());
 	RooRealVar N_4norm("N_4norm","N_4norm",w.data("cwww_12ccw_20cb_60")->sumEntries("MWW>900"));
 
-	cout << 1 << endl;
 
 	w2.import(N_4norm4fit);
 	w2.import(N_SM4fit);
@@ -373,7 +373,7 @@ void interference(int channel)
 	RooArgList N_list(N1,N2,N4,N5,N6,N7);
 	N_list.add(RooArgList(N8,N9,N10));
 	//RooArgList Pdf_list(*SM_Pdf,*Pdf_cwww,*Pdf_ccw,*Pdf_cb);
-	RooArgList Pdf_list(*SM_Pdf,Pdf_cwww,Pdf_ccw,*Pdf_ccw_lin,Pdf_cb,*Pdf_cb_lin);
+	RooArgList Pdf_list(*SM_Pdf,Pdf_cwww,Pdf_ccw,*Pdf_ccw_lin,*Pdf_cb,*Pdf_cb_lin);
 	Pdf_list.add(RooArgList(*Int_cwww_ccw,*Int_cwww_cb,*Int_ccw_cb));
 	Pdf_list.Print();
 	N_list.Print();
@@ -385,14 +385,13 @@ void interference(int channel)
 	//RooRealVar * a22	= w.var("a22"); a22->setConstant(true);
 	a3.setConstant(true);
 	RooRealVar * a33	= w.var("a33");	a33->setConstant(true);
-	a4.setConstant(true);
+	RooRealVar * a4		= w.var("a4"); 	a4->setConstant(true);
 	RooRealVar * a44	= w.var("a44");	a44->setConstant(true);
 	RooRealVar * a5		= w.var("a5");	a5->setConstant(true);
 	RooRealVar * a6		= w.var("a6");	a6->setConstant(true);
 	RooRealVar * a7		= w.var("a7");	a7->setConstant(true);
 
-	RooBinning bins(binlo,3500);
-	bins.addUniform(nbins,binlo,3500);
+
 //SM-fit
 	cwww.setVal(0);	ccw.setVal(0); cb.setVal(0); 	
 	model1.fitTo(*w.data("cwww0ccw0cb0"));//hist0
@@ -414,18 +413,36 @@ void interference(int channel)
 	model1.fitTo(hist_diff_cb);
 	a44->setConstant(true);
 
-	TCanvas cc2("smint","smint",1);
+	TCanvas cc2("smintcb","smintcb",1);
 	cc2.cd();cc2.SetLogy();
 	RooPlot * plott2 = MWW.frame();
-	cwww.setVal(0);ccw.setVal(20); cb.setVal(0);
-	hist_diff_ccw.plotOn(plott2,RooFit::Binning(bins),RooFit::LineColor(kBlue),RooFit::DrawOption("E"));
-	model1.plotOn(plott2,RooFit::LineColor(kBlue),RooFit::Normalization(hist_diff_ccw.sumEntries(),RooAbsReal::NumEvent));
+	cwww.setVal(0);ccw.setVal(0); cb.setVal(-60);
+	w.data("cwww0ccw0cb_60")->plotOn(plott2,RooFit::Binning(bins),RooFit::LineColor(kRed),RooFit::DrawOption("E"));
+	w.data("cwww0ccw0cb60")->plotOn(plott2,RooFit::Binning(bins),RooFit::LineColor(kOrange),RooFit::DrawOption("E"));
+	//model1.plotOn(plott2,RooFit::LineColor(kBlue),RooFit::Normalization(hist_diff_ccw.sumEntries(),RooAbsReal::NumEvent));
 	cwww.setVal(0);ccw.setVal(0); cb.setVal(60);
 	hist_diff_cb.plotOn(plott2,RooFit::Binning(bins),RooFit::LineColor(kGreen),RooFit::DrawOption("E"));
-	model1.plotOn(plott2,RooFit::LineColor(kGreen),RooFit::Normalization(hist_diff_cb.sumEntries(),RooAbsReal::NumEvent));
-	plott2->GetYaxis()->SetRangeUser(0.001,5);
-	//plott2->Draw();
-	//cc2.Draw();cc2.Update();
+	//model1.plotOn(plott2,RooFit::LineColor(kGreen),RooFit::Normalization(hist_diff_cb.sumEntries(),RooAbsReal::NumEvent));
+	plott2->GetYaxis()->SetRangeUser(0.001,50);
+	plott2->Draw();
+	cc2.Draw();cc2.Update();
+
+	TCanvas cc3("smintccw","smintccw",1);
+	cc3.cd();cc3.SetLogy();
+	RooPlot * plott3 = MWW.frame();
+	cwww.setVal(0);ccw.setVal(20); cb.setVal(0);
+	hist_diff_ccw.plotOn(plott3,RooFit::Binning(bins),RooFit::LineColor(kGreen),RooFit::DrawOption("E"));
+	w.data("cwww0ccw_20cb0")->plotOn(plott3,RooFit::Binning(bins),RooFit::LineColor(kRed),RooFit::DrawOption("E"));
+	w.data("cwww0ccw20cb0")->plotOn(plott3,RooFit::Binning(bins),RooFit::LineColor(kOrange),RooFit::DrawOption("E"));
+	//model1.plotOn(plott2,RooFit::LineColor(kBlue),RooFit::Normalization(hist_diff_ccw.sumEntries(),RooAbsReal::NumEvent));
+	cwww.setVal(0);ccw.setVal(0); cb.setVal(60);
+	//model1.plotOn(plott2,RooFit::LineColor(kGreen),RooFit::Normalization(hist_diff_cb.sumEntries(),RooAbsReal::NumEvent));
+	plott3->GetYaxis()->SetRangeUser(0.001,50);
+	plott3->Draw();
+	cc3.Draw();cc3.Update();
+
+
+
 
 	//int cwww-ccw-fit
 	N_SM4fit.setVal(0);N2_tmp.setVal(0);N4_tmp.setVal(0);N5_tmp.setVal(0);N6_tmp.setVal(0);N7_tmp.setVal(0);
@@ -450,7 +467,7 @@ void interference(int channel)
 	a7->setConstant(true);
 	//------------------------
 	int end2;
-
+/*
 	TCanvas cc("atgcint","atgcint",1);
 	cc.cd();//cc.SetLogy();
 	RooPlot * plott = MWW.frame();
@@ -467,7 +484,7 @@ void interference(int channel)
 	plott->Draw();
 	cc.Draw();
 	cc.Update();
-
+*/
 	N_SM4fit.setVal(N_SM_tmp_val);
 	N2_tmp.setVal(N2_tmp_val);
 	N4_tmp.setVal(N4_tmp_val);
@@ -494,21 +511,21 @@ void interference(int channel)
 	Erf_width_ccw.setConstant(true);
 //cb-fit
 	cwww.setVal(0); ccw.setVal(0); cb.setVal(60);
-	a4.setConstant(false);
-	Erf_offset_cb.setConstant(false);
-	Erf_width_cb.setConstant(false);
+	a4->setConstant(false);
+	//Erf_offset_cb.setConstant(false);
+	//Erf_width_cb.setConstant(false);
 	model1.fitTo(*w.data("cwww0ccw0cb60"));//hist61, hist 136
-	a4.setConstant(true);
-	Erf_offset_cb.setConstant(true);
-	Erf_width_cb.setConstant(true);
+	a4->setConstant(true);
+	//Erf_offset_cb.setConstant(true);
+	//Erf_width_cb.setConstant(true);
 
-	cout<<2<<endl;
+
 
 	w2.import(*a1);
 	w2.import(a2);
 	w2.import(a3);
 	w2.import(*a33);
-	w2.import(a4);
+	w2.import(*a4);
 	w2.import(*a44);
 	w2.import(*a5);
 	w2.import(*a6);
@@ -520,7 +537,7 @@ void interference(int channel)
 	fileOut->Close();
 
 
-
+/*
 	TCanvas c1("fits","fits0",1);
 	c1.cd(); c1.SetLogy();
 	RooPlot * plot1 = MWW.frame();
@@ -539,7 +556,7 @@ void interference(int channel)
 	plot1->Draw();
 	c1.Draw();
 	c1.Update();
-
+*/
 	int end;
 
 /*
@@ -552,66 +569,7 @@ void interference(int channel)
 	plot2->Draw();
 	c2.Draw();
 	c2.Update();
-*/
-/*
-	TCanvas c6("allneg","allneg",1);
-	c6.cd(); c6.SetLogy();
-	RooPlot * plot6 = MWW.frame();
-	cwww.setVal(-12); ccw.setVal(-20); cb.setVal(-60);
-	w.data("hist1")->plotOn(plot6,RooFit::Binning(bins),RooFit::MarkerColor(kBlue));
-	model1.plotOn(plot6);
-	cwww.setVal(0); ccw.setVal(0); cb.setVal(0);
-	w.data("hist0")->plotOn(plot6,RooFit::Binning(bins),RooFit::MarkerColor(kBlack));
-	model1.plotOn(plot6);
-	plot6->Draw();
-	c6.Draw();
-	c6.Update();
 
-	TCanvas c5("all","all",1);
-	c5.cd(); c5.SetLogy();
-	RooPlot * plot5 = MWW.frame();
-	cwww.setVal(0); ccw.setVal(0); cb.setVal(0);
-	w.data("hist0")->plotOn(plot5,RooFit::Binning(bins),RooFit::MarkerColor(kBlue));
-	model1.plotOn(plot5);
-	cwww.setVal(2); ccw.setVal(3.5); cb.setVal(10);
-	w.data("hist149")->plotOn(plot5,RooFit::Binning(bins),RooFit::MarkerColor(kRed));
-	model1.plotOn(plot5,RooFit::LineColor(kRed),RooFit::Normalization(w.data("hist149")->sumEntries(),RooAbsReal::NumEvent));
-	cwww.setVal(-6); ccw.setVal(0); cb.setVal(30);
-	w.data("hist39")->plotOn(plot5,RooFit::Binning(bins),RooFit::MarkerColor(kMagenta));
-	model1.plotOn(plot5,RooFit::LineColor(kMagenta),RooFit::Normalization(w.data("hist39")->sumEntries(),RooAbsReal::NumEvent));
-	cwww.setVal(-6); ccw.setVal(20); cb.setVal(-60);
-	w.data("hist46")->plotOn(plot5,RooFit::Binning(bins),RooFit::MarkerColor(kCyan));
-	model1.plotOn(plot5,RooFit::LineColor(kCyan),RooFit::Normalization(w.data("hist46")->sumEntries(),RooAbsReal::NumEvent));
-	cwww.setVal(12); ccw.setVal(-10); cb.setVal(-30);
-	w.data("hist106")->plotOn(plot5,RooFit::Binning(bins),RooFit::MarkerColor(kGreen));
-	model1.plotOn(plot5,RooFit::LineColor(kGreen),RooFit::Normalization(w.data("hist106")->sumEntries(),RooAbsReal::NumEvent));
-	plot5->Draw();
-	c5.Draw();
-	c5.Update();
-	c5.SaveAs("interference_plot.root","RECREATE");
-
-	TCanvas c7("cwww","cwww",1);
-	c7.cd(); c7.SetLogy();
-	RooPlot * plot7 = MWW.frame();
-	cwww.setVal(0); ccw.setVal(0); cb.setVal(0);
-	w.data("hist0")->plotOn(plot7,RooFit::Binning(bins),RooFit::LineColor(kBlack),RooFit::DrawOption("E1"));
-	model1.plotOn(plot7,RooFit::LineColor(kBlack),RooFit::LineWidth(1));
-	cwww.setVal(0);	ccw.setVal(10); cb.setVal(-30);
-	w.data("hist66")->plotOn(plot7,RooFit::Binning(bins),RooFit::LineColor(kBlue),RooFit::DrawOption("E1"));
-	model1.plotOn(plot7,RooFit::LineColor(kBlue),RooFit::LineWidth(1),RooFit::Normalization(w.data("hist66")->sumEntries(),RooAbsReal::NumEvent));
-	cwww.setVal(1);	ccw.setVal(2); cb.setVal(-6);
-	w.data("hist147")->plotOn(plot7,RooFit::Binning(bins),RooFit::LineColor(kGreen),RooFit::DrawOption("E1"));
-	model1.plotOn(plot7,RooFit::LineColor(kGreen),RooFit::LineWidth(1),RooFit::Normalization(w.data("hist147")->sumEntries(),RooAbsReal::NumEvent));
-	cwww.setVal(6);	ccw.setVal(10); cb.setVal(-30);
-	w.data("hist91")->plotOn(plot7,RooFit::Binning(bins),RooFit::LineColor(kRed),RooFit::DrawOption("E1"));
-	model1.plotOn(plot7,RooFit::LineColor(kRed),RooFit::LineWidth(1),RooFit::Normalization(w.data("hist91")->sumEntries(),RooAbsReal::NumEvent));
-	cwww.setVal(12); ccw.setVal(10); cb.setVal(-30);
-	w.data("hist116")->plotOn(plot7,RooFit::Binning(bins),RooFit::LineColor(kCyan),RooFit::DrawOption("E1"));
-	model1.plotOn(plot7,RooFit::LineColor(kCyan),RooFit::LineWidth(1),RooFit::Normalization(w.data("hist116")->sumEntries(),RooAbsReal::NumEvent));
-	plot7->Draw();
-	c7.Draw();
-	c7.Update();
-*/
 	//N8_tmp.setVal(0);
 	//N9_tmp.setVal(0);
 	//N10_tmp.setVal(0);
@@ -647,6 +605,140 @@ void interference(int channel)
 	leg->Draw("SAME");
 	c4plot.Update();
 	c4plot.SaveAs("atgcinterference_plot4talk.png");
+*/
+
+	double sum_SM	= w.data("cwww0ccw0cb0")->sumEntries();
+	//scaling for ccw
+	TH1F hist4scale_ccw("hist4scale_ccw","hist4scale_ccw",3,-30,30);
+	hist4scale_ccw.SetBinContent(1,w.data("cwww0ccw_20cb0")->sumEntries()/sum_SM);
+	hist4scale_ccw.SetBinContent(2,w.data("cwww0ccw0cb0")->sumEntries()/sum_SM);
+	hist4scale_ccw.SetBinContent(3,w.data("cwww0ccw20cb0")->sumEntries()/sum_SM);
+	hist4scale_ccw.Fit("pol2");
+	TF1 * fitfunc_ccw	= hist4scale_ccw.GetFunction("pol2");
+	RooRealVar par0_ccw("par0_ccw","par0_ccw",fitfunc_ccw->GetParameter(0));
+	RooRealVar par1_ccw("par1_ccw","par1_ccw",fitfunc_ccw->GetParameter(1));
+	RooRealVar par2_ccw("par2_ccw","par2_ccw",fitfunc_ccw->GetParameter(2));
+	RooFormulaVar scaleshape_ccw("scaleshape_ccw","scaleshape_ccw","(@0+@1*@3+@2*@3**2)",RooArgList(par0_ccw,par1_ccw,par2_ccw,ccw));
+	//scaling for cb
+	TH1F hist4scale_cb("hist4scale_cb","hist4scale_cb",3,-90,90);
+	hist4scale_cb.SetBinContent(1,w.data("cwww0ccw0cb_60")->sumEntries()/sum_SM);
+	hist4scale_cb.SetBinContent(2,w.data("cwww0ccw0cb0")->sumEntries()/sum_SM);
+	hist4scale_cb.SetBinContent(3,w.data("cwww0ccw0cb60")->sumEntries()/sum_SM);
+	hist4scale_cb.Fit("pol2");
+	TF1 * fitfunc_cb	= hist4scale_cb.GetFunction("pol2");
+	RooRealVar par0_cb("par0_cb","par0_cb",fitfunc_cb->GetParameter(0));
+	RooRealVar par1_cb("par1_cb","par1_cb",fitfunc_cb->GetParameter(1));
+	RooRealVar par2_cb("par2_cb","par2_cb",fitfunc_cb->GetParameter(2));
+	RooFormulaVar scaleshape_cb("scaleshape_cb","scaleshape_cb","(@0+@1*@3+@2*@3**2)",RooArgList(par0_cb,par1_cb,par2_cb,cb));
+
+
+	TCanvas cc1("smintccwpos","smintccwpos",1);
+	cc1.cd();cc1.SetLogy();
+	RooPlot * pp = MWW.frame(900,3500);
+	w.data("cwww0ccw20cb0")->plotOn(pp,RooFit::LineColor(kBlue),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(20);cb.setVal(0);
+	model1.plotOn(pp,RooFit::LineColor(kBlue),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw3_5cb0")->plotOn(pp,RooFit::LineColor(kCyan),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(3.5);cb.setVal(0);
+	model1.plotOn(pp,RooFit::LineColor(kCyan),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw10cb0")->plotOn(pp,RooFit::LineColor(kMagenta),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(10);cb.setVal(0);
+	model1.plotOn(pp,RooFit::LineColor(kMagenta),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+	for(unsigned int i=0; i<20; i++)
+	{
+		ccw.setVal(i);
+		if(i==0)
+			model1.plotOn(pp,RooFit::LineWidth(3),RooFit::LineColor(kBlack),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+		else
+			model1.plotOn(pp,RooFit::LineWidth(1),RooFit::LineColor(kGray),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+		cout<<i<<" : "<<scaleshape_ccw.getVal()*sum_SM<<endl;
+	}
+	w.data("cwww0ccw0cb0")->plotOn(pp,RooFit::LineColor(kBlack),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	pp->GetYaxis()->SetRangeUser(0.00075,3);
+	pp->Draw();
+	cc1.Draw();cc1.Update();
+
+	TCanvas ccc2("smintccwneg","smintccwneg",1);
+	ccc2.cd();ccc2.SetLogy();
+	RooPlot * pp2 = MWW.frame(900,3500);
+	w.data("cwww0ccw_20cb0")->plotOn(pp2,RooFit::LineColor(kBlue),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(-20);cb.setVal(0);
+	model1.plotOn(pp2,RooFit::LineColor(kBlue),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw_10cb0")->plotOn(pp2,RooFit::LineColor(kMagenta),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(-10);cb.setVal(0);
+	model1.plotOn(pp2,RooFit::LineColor(kMagenta),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw_3_5cb0")->plotOn(pp2,RooFit::LineColor(kCyan),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(-3.5);cb.setVal(0);
+	model1.plotOn(pp2,RooFit::LineColor(kCyan),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+	ccw.setVal(-20);
+	for(int i=0; i<20; i++)
+	{
+		ccw.setVal(i*(-1));
+		model1.plotOn(pp2,RooFit::LineWidth(1),RooFit::LineColor(kGray),RooFit::Normalization(scaleshape_ccw.getVal()*sum_SM,RooAbsReal::NumEvent));
+		cout<<i<<" : "<<ccw.getVal()<<", "<<scaleshape_ccw.getVal()*sum_SM<<endl;
+	}
+	w.data("cwww0ccw0cb0")->plotOn(pp2,RooFit::LineColor(kBlack),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	pp2->GetYaxis()->SetRangeUser(0.00075,3);
+	pp2->Draw();
+	ccc2.Draw();ccc2.Update();
+
+
+	TCanvas ccc3("smintcbneg","smintcbneg",1);
+	ccc3.cd();ccc3.SetLogy();
+	RooPlot * pp3 = MWW.frame(600,3500);
+	w.data("cwww0ccw0cb_60")->plotOn(pp3,RooFit::LineColor(kBlue),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(0);cb.setVal(-60);
+	model1.plotOn(pp3,RooFit::LineColor(kBlue),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw0cb_30")->plotOn(pp3,RooFit::LineColor(kMagenta),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(0);cb.setVal(-30);
+	model1.plotOn(pp3,RooFit::LineColor(kMagenta),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw0cb_10")->plotOn(pp3,RooFit::LineColor(kCyan),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(0);cb.setVal(-10);
+	model1.plotOn(pp3,RooFit::LineColor(kCyan),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+	cb.setVal(-20);
+	for(int i=0; i<20; i++)
+	{
+		cb.setVal(i*(-3));
+		model1.plotOn(pp3,RooFit::LineWidth(1),RooFit::LineColor(kGray),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+		cout<<i<<" : "<<cb.getVal()<<", "<<scaleshape_cb.getVal()*sum_SM<<endl;
+	}
+	w.data("cwww0ccw0cb0")->plotOn(pp3,RooFit::LineColor(kBlack),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	pp3->GetYaxis()->SetRangeUser(0.00075,30);
+	pp3->Draw();
+	ccc3.Draw();ccc3.Update();
+	cb.setVal(0);
+	cout<<scaleshape_cb.getVal()*sum_SM<<" / "<<w.data("cwww0ccw0cb0")->sumEntries()<<endl;
+	cb.setVal(-60);
+	cout<<scaleshape_cb.getVal()*sum_SM<<" / "<<w.data("cwww0ccw0cb_60")->sumEntries()<<endl;
+
+	TCanvas ccc4("smintcbpos","smintcbpos",1);
+	ccc4.cd();ccc4.SetLogy();
+	RooPlot * pp4 = MWW.frame(600,3500);
+	w.data("cwww0ccw0cb60")->plotOn(pp4,RooFit::LineColor(kBlue),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(0);cb.setVal(60);
+	model1.plotOn(pp4,RooFit::LineColor(kBlue),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw0cb30")->plotOn(pp4,RooFit::LineColor(kMagenta),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(0);cb.setVal(30);
+	model1.plotOn(pp4,RooFit::LineColor(kMagenta),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+	w.data("cwww0ccw0cb10")->plotOn(pp4,RooFit::LineColor(kCyan),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	cwww.setVal(0);ccw.setVal(0);cb.setVal(10);
+	model1.plotOn(pp4,RooFit::LineColor(kCyan),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+	cb.setVal(-20);
+	for(int i=0; i<20; i++)
+	{
+		cb.setVal(i*(3));
+		model1.plotOn(pp4,RooFit::LineWidth(1),RooFit::LineColor(kGray),RooFit::Normalization(scaleshape_cb.getVal()*sum_SM,RooAbsReal::NumEvent));
+		cout<<i<<" : "<<cb.getVal()<<", "<<scaleshape_cb.getVal()*sum_SM<<endl;
+	}
+	w.data("cwww0ccw0cb0")->plotOn(pp4,RooFit::LineColor(kBlack),RooFit::DrawOption("E"),RooFit::Binning(bins));
+	pp4->GetYaxis()->SetRangeUser(0.00075,30);
+	pp4->Draw();
+	ccc4.Draw();ccc4.Update();
+
+
+
+
+
 
 	for(int i = 1; i<8; i++)
 	{
@@ -665,17 +757,19 @@ void interference(int channel)
 	std::cout<<"all params max:"<<std::endl;
 	std::cout<<"N_SM: "<<N1.getVal()<<std::endl;
 	std::cout<<"N2: "<<N2.getVal()<<", N4: "<<N4.getVal()<<", N6:"<<N6.getVal()<<std::endl;
-	std::cout<<", N5: "<<N5.getVal()<<", N7:"<<N7.getVal()<<std::endl;
+	std::cout<<"N5: "<<N5.getVal()<<", N7:"<<N7.getVal()<<std::endl;
 	std::cout<<"N8: "<<N8.getVal()<<", N9: "<<N9.getVal()<<", N10:"<<N10.getVal()<<std::endl;
 
 	cwww.setVal(1.2); ccw.setVal(2); cb.setVal(6);
 	std::cout<<"all params 1/10:"<<std::endl;
 	std::cout<<"N_SM: "<<N1.getVal()<<std::endl;
 	std::cout<<"N2: "<<N2.getVal()<<", N4: "<<N4.getVal()<<", N6:"<<N6.getVal()<<std::endl;
-	std::cout<<", N5: "<<N5.getVal()<<", N7:"<<N7.getVal()<<std::endl;
+	std::cout<<"N5: "<<N5.getVal()<<", N7:"<<N7.getVal()<<std::endl;
 	std::cout<<"N8: "<<N8.getVal()<<", N9: "<<N9.getVal()<<", N10:"<<N10.getVal()<<std::endl;
 
 
+	std::cout<<"ccw lin: "<<hist_diff_ccw.sumEntries()<<std::endl;
+	std::cout<<"cb lin: "<<hist_diff_cb.sumEntries()<<std::endl;
 	std::cout<<"cwww/ccw: "<<hist_diff_cwww_ccw.sumEntries()<<std::endl;
 	std::cout<<"cwww/cb: "<<hist_diff_cwww_cb.sumEntries()<<std::endl;
 	std::cout<<"ccw/cb: "<<hist_diff_ccw_cb.sumEntries()<<std::endl;	

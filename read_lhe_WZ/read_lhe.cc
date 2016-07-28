@@ -169,7 +169,7 @@ void read_lhe()
 		}	
 
 
-		if(wz.M() < 900. or wz.M() > 3500.)
+		if(wz.M() < 600. or wz.M() > 3500.)
 			keep_Event = false;
 
 		if(keep_Event)

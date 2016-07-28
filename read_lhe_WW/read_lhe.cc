@@ -162,7 +162,7 @@ void read_lhe()
 			std::cout << "something went wrong! (-> nw,nlep,nwhad)" << "(" << nw << " , " << nlep << " , " << nwhad << ")" << std::endl;	
 
 
-		if(ww.M() < 900. or ww.M() > 3500.)
+		if(ww.M() < 600. or ww.M() > 3500.)
 			keep_Event = false;
 
 		if(keep_Event)
